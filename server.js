@@ -5,7 +5,13 @@ require("dotenv").config()
 const cors = require('cors');
 const { RoomRouter } = require('./routes/room.routes');
 const { client } = require('./db');
-
+const {
+  userJoin,
+  getRoomUsers,
+  getCurrentUser,
+  userLeave,
+} = require("./routes/user");
+const formateMessage = require("./routes/message");
 
 const app = express()
 app.use(express.json())
@@ -42,6 +48,63 @@ io.on("connection", (socket) => {
         })
     })
 })
+
+io.on("connection", (socket) => {
+    console.log("One user has joined");
+  
+    socket.on("joinRoom", ({ username, room }) => {
+      const user = userJoin(socket.id, username, room);
+  
+      socket.join(user.room);
+  
+      // Welcome message
+      socket.emit(
+        "message",
+        formateMessage("Server ", " Welcome to Real Talk Application")
+      );
+  
+      // Broadcasting other users
+      socket.broadcast
+        .to(user.room)
+        .emit(
+          "message",
+          formateMessage("Server", `${username} has joined the chat`)
+        );
+  
+      // getting room users.
+      io.to(room).emit("roomUsers", {
+        room: user.room,
+        users: getRoomUsers(user.room),
+      });
+    });
+  
+    socket.on("chatMessage", (msg) => {
+      const user = getCurrentUser(socket.id);
+  
+      io.to(user.room).emit("message", formateMessage(user.username, msg));
+    });
+  
+    socket.on("disconnect", () => {
+      const user = userLeave(socket.id);
+      console.log("one user left");
+  
+      if (!user || !user.room) {
+        return;
+      }
+  
+      // Broadcastion other users on leaving
+      io.to(user.room).emit(
+        "message",
+        formateMessage("Server", `${user.username} has left the chat`)
+      );
+  
+      // getting room users.
+      io.to(user.room).emit("roomUsers", {
+        room: user.room,
+        users: getRoomUsers(user.room),
+      });
+    });
+  });
 
 
 //Checking Redis Error
