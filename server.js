@@ -60,7 +60,7 @@ io.on("connection", (socket) => {
       // Welcome message
       socket.emit(
         "message",
-        formateMessage("Server ", " Welcome to Real Talk Application")
+        formateMessage("Server ", " Welcome to VLink Application")
       );
   
       // Broadcasting other users
